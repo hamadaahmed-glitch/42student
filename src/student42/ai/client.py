@@ -1,15 +1,14 @@
 """
 Gemini SDK Client Integration (google-genai).
-Executes Structured Output queries and autonomous Function Calling loops.
 """
 
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, Optional, Type, TypeVar
+import time
+from typing import Optional, Type, TypeVar
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 from pydantic import BaseModel
 
 from student42.ai.tools import AgentToolRegistry
@@ -25,7 +24,7 @@ class GeminiClient:
         settings = get_settings()
         if not settings.gemini_api_key:
             raise ValueError(
-                "GEMINI_API_KEY environment variable is missing. Configure .env file."
+                "GEMINI_API_KEY environment variable is missing. Configure your .env file."
             )
         self.client = genai.Client(api_key=settings.gemini_api_key)
         self.primary_model = settings.gemini_primary_model
@@ -38,92 +37,38 @@ class GeminiClient:
         system_instruction: Optional[str] = None,
         use_fast_model: bool = False,
     ) -> T:
-        """Calls Gemini enforcing a strict Pydantic JSON schema."""
+        """Calls Gemini enforcing a strict Pydantic JSON schema with retry fallback."""
         model = self.fast_model if use_fast_model else self.primary_model
 
         config = types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=response_model,
             system_instruction=system_instruction,
-            temperature=0.2,  # Low temperature for deterministic analysis
+            temperature=0.2,
         )
 
-        response = self.client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config=config,
-        )
-
-        if not response.text:
-            raise RuntimeError("Gemini returned an empty response.")
-
-        return response_model.model_validate_json(response.text)
-
-    def execute_agentic_loop(
-        self,
-        prompt: str,
-        project_slug: str,
-        system_instruction: str,
-        max_tool_turns: int = 5,
-    ) -> str:
-        """
-        Runs an autonomous tool-calling loop where Gemini can inspect files
-        and Norminette until it produces its final analytical guidance.
-        """
-        registry = AgentToolRegistry(project_slug)
-        dispatch = registry.get_dispatch_map()
-        tools = registry.get_tool_declarations()
-
-        messages = [prompt]
-        current_turn = 0
-
-        while current_turn < max_tool_turns:
-            current_turn += 1
-
-            config = types.GenerateContentConfig(
-                tools=tools,
-                system_instruction=system_instruction,
-                temperature=0.3,
-            )
-
-            response = self.client.models.generate_content(
-                model=self.primary_model,
-                contents=messages,
-                config=config,
-            )
-
-            # Check if model requested function calls
-            function_calls = response.function_calls
-            if not function_calls:
-                return response.text or "Analysis completed with no remarks."
-
-            # Execute host function calls
-            for call in function_calls:
-                fn_name = call.name
-                fn_args = call.args or {}
-
-                if fn_name in dispatch:
-                    tool_result = dispatch[fn_name](**fn_args)
-                else:
-                    tool_result = f"Error: Tool '{fn_name}' is not recognized."
-
-                # Append assistant tool call and tool response back to messages
-                messages.append(
-                    types.Content(
-                        role="model",
-                        parts=[types.Part.from_function_call(name=fn_name, args=fn_args)],
-                    )
+        # Retry logic for 503 temporary demand spikes
+        attempts = 0
+        last_error: Exception | None = None
+        while attempts < 3:
+            attempts += 1
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=config,
                 )
-                messages.append(
-                    types.Content(
-                        role="tool",
-                        parts=[
-                            types.Part.from_function_response(
-                                name=fn_name,
-                                response={"result": tool_result},
-                            )
-                        ],
-                    )
-                )
+                if not response.text:
+                    raise RuntimeError("Gemini returned an empty response.")
+                return response_model.model_validate_json(response.text)
+            except errors.ServerError as e:
+                last_error = e
+                time.sleep(1.5 * attempts)
+            except errors.ClientError as e:
+                # If model is not found, attempt fallback to gemini-2.0-flash
+                if "404" in str(e) and model != "gemini-2.0-flash":
+                    model = "gemini-2.0-flash"
+                    continue
+                raise
 
-        return "Analysis halted: Maximum agent tool call depth reached."
+        raise RuntimeError(f"Gemini API temporarily unavailable after retries: {last_error}")

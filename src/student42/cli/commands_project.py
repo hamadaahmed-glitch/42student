@@ -12,11 +12,40 @@ from rich.table import Table
 from student42.cli.ui import console
 from student42.core.config import get_paths
 from student42.database.connection import get_db_manager
-from student42.database.models import Exercise
 from student42.database.repository import ExerciseRepository, ProjectRepository
 from student42.workspace.path_resolver import PathResolver
 
 app = typer.Typer(help="Manage 42 cursus projects and local workspace mappings.")
+
+
+def _seed_templates_if_needed(session) -> None:
+    """Scans config/project_templates and registers any unseeded projects."""
+    paths = get_paths()
+    proj_repo = ProjectRepository(session)
+    ex_repo = ExerciseRepository(session)
+
+    for template_file in paths.templates_dir.glob("*.json"):
+        try:
+            data = json.loads(template_file.read_text(encoding="utf-8"))
+            slug = data["identity"]["slug"]
+            if not proj_repo.get_by_slug(slug):
+                project = proj_repo.create_or_update_project(
+                    slug=slug,
+                    name=data["identity"]["name"],
+                    tier=data["identity"]["tier"],
+                    access_mode=data.get("reference_policy", {}).get("default_mode", "strict"),
+                )
+                for mod in data.get("curriculum", []):
+                    for fn in mod.get("functions", []):
+                        ex_repo.register_exercise(
+                            project_id=project.id,
+                            module_id=mod["module_id"],
+                            name=fn["name"],
+                            source_file=fn["source_file"],
+                            signature=fn.get("signature"),
+                        )
+        except Exception:
+            continue
 
 
 @app.command("list")
@@ -24,6 +53,7 @@ def list_projects() -> None:
     """Lists all available projects and their active status."""
     db = get_db_manager()
     with db.session() as session:
+        _seed_templates_if_needed(session)
         repo = ProjectRepository(session)
         projects = repo.list_all()
 
@@ -45,36 +75,16 @@ def list_projects() -> None:
 def select_project(slug: str) -> None:
     """Switches active project context (e.g. libft, ft_printf, get_next_line)."""
     db = get_db_manager()
-    paths = get_paths()
-    template_file = paths.templates_dir / f"{slug}.json"
-
     with db.session() as session:
+        _seed_templates_if_needed(session)
         proj_repo = ProjectRepository(session)
-        ex_repo = ExerciseRepository(session)
-
-        # Check if project needs initialization from template
         project = proj_repo.get_by_slug(slug)
-        if not project and template_file.exists():
-            data = json.loads(template_file.read_text(encoding="utf-8"))
-            project = proj_repo.create_or_update_project(
-                slug=data["identity"]["slug"],
-                name=data["identity"]["name"],
-                tier=data["identity"]["tier"],
-                access_mode=data["reference_policy"]["default_mode"],
-            )
-            # Register exercises
-            for mod in data.get("curriculum", []):
-                for fn in mod.get("functions", []):
-                    ex_repo.register_exercise(
-                        project_id=project.id,
-                        module_id=mod["module_id"],
-                        name=fn["name"],
-                        source_file=fn["source_file"],
-                        signature=fn.get("signature"),
-                    )
+        if not project:
+            console.print(f"[red]Error: Project '{slug}' not found in registered templates.[/red]")
+            raise typer.Exit(code=1)
 
         proj_repo.set_active_project(slug)
-        console.print(f"[green]✓ Switched active context to [bold]{slug}[/bold][/green]")
+        console.print(f"[bold green]✓ Switched active context to [cyan]{slug}[/cyan][/bold green]")
 
 
 @app.command("path")
@@ -82,7 +92,7 @@ def set_project_path(local_dir: str) -> None:
     """Binds the active project to a directory on your local filesystem."""
     target_path = Path(local_dir).expanduser().resolve()
     if not target_path.exists():
-        console.print(f"[red]Error: Path '{target_path}' does not exist.[/red]")
+        console.print(f"[red]Error: Path '{target_path}' does not exist on disk.[/red]")
         raise typer.Exit(code=1)
 
     db = get_db_manager()

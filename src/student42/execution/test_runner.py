@@ -1,24 +1,18 @@
 """
 Deterministic Test Pipeline Orchestrator.
-Sequentially runs: Norminette -> Compilation -> Forbidden Functions -> Unit Execution -> Valgrind.
-Persists results and attempts directly into the database.
 """
 
 from __future__ import annotations
 
-import subprocess
 import tempfile
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from student42.database.connection import get_db_manager
-from student42.database.models import Exercise, Project
 from student42.database.repository import (
     AttemptRepository,
     ExerciseRepository,
-    MistakeRepository,
     ProjectRepository,
     SkillRepository,
 )
@@ -58,6 +52,7 @@ class PipelineResult:
 
 class TestRunnerOrchestrator:
     """Coordinates all deterministic verification tools for an exercise."""
+    __test__ = False  # Tells Pytest this is NOT a test class
 
     def __init__(self, project_slug: str) -> None:
         self.project_slug = project_slug
@@ -71,9 +66,10 @@ class TestRunnerOrchestrator:
         template_config: Dict[str, Any],
         student_id: int = 1,
     ) -> PipelineResult:
-        """Executes full verification pipeline against an exercise."""
-        db = get_db_manager()
+        # Normalize: strip .c if supplied
+        clean_name = exercise_name[:-2] if exercise_name.endswith(".c") else exercise_name
 
+        db = get_db_manager()
         with db.session() as session:
             proj_repo = ProjectRepository(session)
             project = proj_repo.get_by_slug(self.project_slug)
@@ -82,19 +78,28 @@ class TestRunnerOrchestrator:
 
             resolver = PathResolver(self.project_slug, project.local_path)
             if not resolver.exists():
-                raise FileNotFoundError(f"Project directory does not exist: {resolver.root}")
+                raise FileNotFoundError(f"Project workspace directory does not exist: {resolver.root}")
 
-            # Locate exercise source
-            source_file = resolver.find_source_file(f"{exercise_name}.c")
+            # Try exact name, then with 'ft_' prefix
+            source_file = resolver.find_source_file(f"{clean_name}.c")
+            if not source_file and not clean_name.startswith("ft_"):
+                source_file = resolver.find_source_file(f"ft_{clean_name}.c")
+                if source_file:
+                    clean_name = f"ft_{clean_name}"
+
             if not source_file:
-                raise FileNotFoundError(f"Source file for '{exercise_name}' not found in workspace.")
+                available = [p.name for p in resolver.list_all_sources()]
+                raise FileNotFoundError(
+                    f"Source file for '{exercise_name}' not found in workspace.\n"
+                    f"Files detected in workspace: {', '.join(available) if available else 'None'}"
+                )
 
             # 1. Norminette Check
             norm_res = self.norminette.run(source_file)
 
             # 2. Compile Check
             with tempfile.TemporaryDirectory() as temp_dir:
-                temp_bin = Path(temp_dir) / f"test_{exercise_name}"
+                temp_bin = Path(temp_dir) / f"test_{clean_name}.o"
                 include_dirs = resolver.list_all_headers()
                 inc_parents = list(set([h.parent for h in include_dirs]))
 
@@ -102,7 +107,7 @@ class TestRunnerOrchestrator:
                     sources=[source_file],
                     output_binary=temp_bin,
                     include_dirs=inc_parents,
-                    extra_flags=["-c"],  # Compile to object file for syntax and warning verification
+                    extra_flags=["-c"],
                 )
 
                 # 3. Forbidden Functions Check
@@ -116,9 +121,8 @@ class TestRunnerOrchestrator:
                         forbidden_passed = sym_res.passed
                         violations = sym_res.forbidden_used
                     except Exception:
-                        forbidden_passed = True  # Fallback if nm is unavailable
+                        forbidden_passed = True
 
-                # 4. Synthesize unit and memory results
                 outcomes: List[SingleTestOutcome] = []
                 tests_passed = 1 if compile_res.success else 0
                 tests_failed = 0 if compile_res.success else 1
@@ -134,7 +138,6 @@ class TestRunnerOrchestrator:
                 memory_clean = True
                 valgrind_log = ""
 
-                # 5. Check overall pass status
                 all_passed = (
                     norm_res.passed
                     and compile_res.success
@@ -143,18 +146,17 @@ class TestRunnerOrchestrator:
                     and (tests_failed == 0)
                 )
 
-                # Persist to Database
                 ex_repo = ExerciseRepository(session)
                 att_repo = AttemptRepository(session)
                 skill_repo = SkillRepository(session)
 
-                exercise = ex_repo.get_exercise(project.id, exercise_name)
+                exercise = ex_repo.get_exercise(project.id, clean_name)
                 if not exercise:
                     exercise = ex_repo.register_exercise(
                         project_id=project.id,
                         module_id="auto",
-                        name=exercise_name,
-                        source_file=f"{exercise_name}.c",
+                        name=clean_name,
+                        source_file=f"{clean_name}.c",
                     )
 
                 attempt = att_repo.record_attempt(
@@ -182,7 +184,7 @@ class TestRunnerOrchestrator:
                 skill_repo.record_outcome(student_id, "norm_adherence", norm_res.passed)
 
                 return PipelineResult(
-                    exercise_name=exercise_name,
+                    exercise_name=clean_name,
                     all_passed=all_passed,
                     norm_passed=norm_res.passed,
                     compile_passed=compile_res.success,
