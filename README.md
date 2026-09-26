@@ -1,9 +1,4 @@
 
-
----
-
-### File: `README.md`
-
 ```markdown
 # 42 Student OS
 
@@ -671,4 +666,3 @@ tests/unit/test_file_scanner.py::test_include_extraction PASSED                 
 ## License
 
 Distributed under the **MIT License**. Designed for students of the **42 Network**. All verification mechanisms are run locally on your machine to support autonomous learning.
-```
