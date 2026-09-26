@@ -1,0 +1,93 @@
+{
+  "identity": {
+    "slug": "libft",
+    "name": "Libft",
+    "tier": "Rank 00",
+    "description": "First foundational project: re-implementing essential C standard library routines and data structures."
+  },
+  "environment": {
+    "language": "C",
+    "standard": "c99",
+    "build_system": "Makefile",
+    "build_target": "all",
+    "clean_target": "fclean",
+    "output_artifact": "libft.a",
+    "norminette_check": true
+  },
+  "constraints": {
+    "allowed_functions": [
+      "write",
+      "malloc",
+      "free"
+    ],
+    "memory_check_required": true,
+    "header_file": "libft.h"
+  },
+  "reference_policy": {
+    "default_mode": "strict",
+    "unlock_on_completion": true
+  },
+  "curriculum": [
+    {
+      "module_id": "part_1",
+      "name": "Part 1 - Libc Functions",
+      "functions": [
+        {"name": "ft_isalpha", "source_file": "ft_isalpha.c", "signature": "int ft_isalpha(int c);"},
+        {"name": "ft_isdigit", "source_file": "ft_isdigit.c", "signature": "int ft_isdigit(int c);"},
+        {"name": "ft_isalnum", "source_file": "ft_isalnum.c", "signature": "int ft_isalnum(int c);"},
+        {"name": "ft_isascii", "source_file": "ft_isascii.c", "signature": "int ft_isascii(int c);"},
+        {"name": "ft_isprint", "source_file": "ft_isprint.c", "signature": "int ft_isprint(int c);"},
+        {"name": "ft_strlen", "source_file": "ft_strlen.c", "signature": "size_t ft_strlen(const char *s);"},
+        {"name": "ft_memset", "source_file": "ft_memset.c", "signature": "void *ft_memset(void *b, int c, size_t len);"},
+        {"name": "ft_bzero", "source_file": "ft_bzero.c", "signature": "void ft_bzero(void *s, size_t n);"},
+        {"name": "ft_memcpy", "source_file": "ft_memcpy.c", "signature": "void *ft_memcpy(void *dst, const void *src, size_t n);"},
+        {"name": "ft_memmove", "source_file": "ft_memmove.c", "signature": "void *ft_memmove(void *dst, const void *src, size_t len);"},
+        {"name": "ft_strlcpy", "source_file": "ft_strlcpy.c", "signature": "size_t ft_strlcpy(char *dst, const char *src, size_t dstsize);"},
+        {"name": "ft_strlcat", "source_file": "ft_strlcat.c", "signature": "size_t ft_strlcat(char *dst, const char *src, size_t dstsize);"},
+        {"name": "ft_toupper", "source_file": "ft_toupper.c", "signature": "int ft_toupper(int c);"},
+        {"name": "ft_tolower", "source_file": "ft_tolower.c", "signature": "int ft_tolower(int c);"},
+        {"name": "ft_strchr", "source_file": "ft_strchr.c", "signature": "char *ft_strchr(const char *s, int c);"},
+        {"name": "ft_strrchr", "source_file": "ft_strrchr.c", "signature": "char *ft_strrchr(const char *s, int c);"},
+        {"name": "ft_strncmp", "source_file": "ft_strncmp.c", "signature": "int ft_strncmp(const char *s1, const char *s2, size_t n);"},
+        {"name": "ft_memchr", "source_file": "ft_memchr.c", "signature": "void *ft_memchr(const void *s, int c, size_t n);"},
+        {"name": "ft_memcmp", "source_file": "ft_memcmp.c", "signature": "int ft_memcmp(const void *s1, const void *s2, size_t n);"},
+        {"name": "ft_strnstr", "source_file": "ft_strnstr.c", "signature": "char *ft_strnstr(const char *haystack, const char *needle, size_t len);"},
+        {"name": "ft_atoi", "source_file": "ft_atoi.c", "signature": "int ft_atoi(const char *str);"},
+        {"name": "ft_calloc", "source_file": "ft_calloc.c", "signature": "void *ft_calloc(size_t count, size_t size);"},
+        {"name": "ft_strdup", "source_file": "ft_strdup.c", "signature": "char *ft_strdup(const char *s1);"}
+      ]
+    },
+    {
+      "module_id": "part_2",
+      "name": "Part 2 - Additional Functions",
+      "functions": [
+        {"name": "ft_substr", "source_file": "ft_substr.c", "signature": "char *ft_substr(char const *s, unsigned int start, size_t len);"},
+        {"name": "ft_strjoin", "source_file": "ft_strjoin.c", "signature": "char *ft_strjoin(char const *s1, char const *s2);"},
+        {"name": "ft_strtrim", "source_file": "ft_strtrim.c", "signature": "char *ft_strtrim(char const *s1, char const *set);"},
+        {"name": "ft_split", "source_file": "ft_split.c", "signature": "char **ft_split(char const *s, char c);"},
+        {"name": "ft_itoa", "source_file": "ft_itoa.c", "signature": "char *ft_itoa(int n);"},
+        {"name": "ft_strmapi", "source_file": "ft_strmapi.c", "signature": "char *ft_strmapi(char const *s, char (*f)(unsigned int, char));"},
+        {"name": "ft_striteri", "source_file": "ft_striteri.c", "signature": "void ft_striteri(char *s, void (*f)(unsigned int, char*));"},
+        {"name": "ft_putchar_fd", "source_file": "ft_putchar_fd.c", "signature": "void ft_putchar_fd(char c, int fd);"},
+        {"name": "ft_putstr_fd", "source_file": "ft_putstr_fd.c", "signature": "void ft_putstr_fd(char *s, int fd);"},
+        {"name": "ft_putendl_fd", "source_file": "ft_putendl_fd.c", "signature": "void ft_putendl_fd(char *s, int fd);"},
+        {"name": "ft_putnbr_fd", "source_file": "ft_putnbr_fd.c", "signature": "void ft_putnbr_fd(int n, int fd);"}
+      ]
+    },
+    {
+      "module_id": "bonus",
+      "name": "Bonus - Linked Lists",
+      "functions": [
+        {"name": "ft_lstnew", "source_file": "ft_lstnew.c", "signature": "t_list *ft_lstnew(void *content);"},
+        {"name": "ft_lstadd_front", "source_file": "ft_lstadd_front.c", "signature": "void ft_lstadd_front(t_list **lst, t_list *new);"},
+        {"name": "ft_lstsize", "source_file": "ft_lstsize.c", "signature": "int ft_lstsize(t_list *lst);"},
+        {"name": "ft_lstlast", "source_file": "ft_lstlast.c", "signature": "t_list *ft_lstlast(t_list *lst);"},
+        {"name": "ft_lstadd_back", "source_file": "ft_lstadd_back.c", "signature": "void ft_lstadd_back(t_list **lst, t_list *new);"},
+        {"name": "ft_lstdelone", "source_file": "ft_lstdelone.c", "signature": "void ft_lstdelone(t_list *lst, void (*del)(void *));"},
+        {"name": "ft_lstclear", "source_file": "ft_lstclear.c", "signature": "void ft_lstclear(t_list **lst, void (*del)(void *));"},
+        {"name": "ft_lstiter", "source_file": "ft_lstiter.c", "signature": "void ft_lstiter(t_list *lst, void (*f)(void *));"},
+        {"name": "ft_lstmap", "source_file": "ft_lstmap.c", "signature": "t_list *ft_lstmap(t_list *lst, void *(*f)(void *), void (*del)(void *));"}
+      ]
+    }
+  ]
+}

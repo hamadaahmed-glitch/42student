@@ -1,0 +1,41 @@
+{
+  "identity": {
+    "slug": "piscine_c00",
+    "name": "Piscine C 00",
+    "tier": "Piscine",
+    "description": "Initial introduction to C programming, standard output, and basic recursion/iteration."
+  },
+  "environment": {
+    "language": "C",
+    "standard": "c99",
+    "build_system": "direct_compile",
+    "norminette_check": true
+  },
+  "constraints": {
+    "allowed_functions": [
+      "write"
+    ],
+    "memory_check_required": false
+  },
+  "reference_policy": {
+    "default_mode": "study",
+    "unlock_on_completion": true
+  },
+  "curriculum": [
+    {
+      "module_id": "exercises",
+      "name": "C 00 Exercises",
+      "functions": [
+        {"name": "ex00", "source_file": "ft_putchar.c", "signature": "void ft_putchar(char c);"},
+        {"name": "ex01", "source_file": "ft_print_alphabet.c", "signature": "void ft_print_alphabet(void);"},
+        {"name": "ex02", "source_file": "ft_print_reverse_alphabet.c", "signature": "void ft_print_reverse_alphabet(void);"},
+        {"name": "ex03", "source_file": "ft_print_numbers.c", "signature": "void ft_print_numbers(void);"},
+        {"name": "ex04", "source_file": "ft_is_negative.c", "signature": "void ft_is_negative(int n);"},
+        {"name": "ex05", "source_file": "ft_print_comb.c", "signature": "void ft_print_comb(void);"},
+        {"name": "ex06", "source_file": "ft_print_comb2.c", "signature": "void ft_print_comb2(void);"},
+        {"name": "ex07", "source_file": "ft_putnbr.c", "signature": "void ft_putnbr(int nb);"},
+        {"name": "ex08", "source_file": "ft_print_combn.c", "signature": "void ft_print_combn(int n);"}
+      ]
+    }
+  ]
+}

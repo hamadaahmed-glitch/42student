@@ -1,0 +1,48 @@
+{
+  "identity": {
+    "slug": "ft_printf",
+    "name": "ft_printf",
+    "tier": "Rank 01",
+    "description": "Re-creating the libc printf function to master variadic functions and specifier parsing."
+  },
+  "environment": {
+    "language": "C",
+    "standard": "c99",
+    "build_system": "Makefile",
+    "build_target": "all",
+    "clean_target": "fclean",
+    "output_artifact": "libftprintf.a",
+    "norminette_check": true
+  },
+  "constraints": {
+    "allowed_functions": [
+      "write",
+      "malloc",
+      "free",
+      "va_start",
+      "va_arg",
+      "va_copy",
+      "va_end"
+    ],
+    "memory_check_required": true,
+    "header_file": "ft_printf.h"
+  },
+  "reference_policy": {
+    "default_mode": "strict",
+    "unlock_on_completion": true
+  },
+  "curriculum": [
+    {
+      "module_id": "mandatory",
+      "name": "Mandatory Conversions",
+      "conversions": ["c", "s", "p", "d", "i", "u", "x", "X", "%"],
+      "functions": [
+        {
+          "name": "ft_printf",
+          "source_file": "ft_printf.c",
+          "signature": "int ft_printf(const char *format, ...);"
+        }
+      ]
+    }
+  ]
+}

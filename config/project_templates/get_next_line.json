@@ -1,0 +1,61 @@
+{
+  "identity": {
+    "slug": "get_next_line",
+    "name": "get_next_line",
+    "tier": "Rank 01",
+    "description": "Reading a line from a file descriptor; master static variables, buffer management, and memory allocations."
+  },
+  "environment": {
+    "language": "C",
+    "standard": "c99",
+    "build_system": "Makefile",
+    "build_target": "all",
+    "clean_target": "fclean",
+    "norminette_check": true
+  },
+  "constraints": {
+    "allowed_functions": [
+      "read",
+      "malloc",
+      "free"
+    ],
+    "memory_check_required": true,
+    "header_file": "get_next_line.h"
+  },
+  "reference_policy": {
+    "default_mode": "strict",
+    "unlock_on_completion": true
+  },
+  "curriculum": [
+    {
+      "module_id": "mandatory",
+      "name": "Mandatory Part",
+      "functions": [
+        {
+          "name": "get_next_line",
+          "source_file": "get_next_line.c",
+          "signature": "char *get_next_line(int fd);"
+        }
+      ],
+      "auxiliary_files": [
+        "get_next_line_utils.c",
+        "get_next_line.h"
+      ]
+    },
+    {
+      "module_id": "bonus",
+      "name": "Bonus Part - Multiple File Descriptors",
+      "functions": [
+        {
+          "name": "get_next_line_bonus",
+          "source_file": "get_next_line_bonus.c",
+          "signature": "char *get_next_line(int fd);"
+        }
+      ],
+      "auxiliary_files": [
+        "get_next_line_utils_bonus.c",
+        "get_next_line_bonus.h"
+      ]
+    }
+  ]
+}
