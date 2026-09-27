@@ -1,2 +1,0 @@
-[console_scripts]
-42student = student42.main:app
