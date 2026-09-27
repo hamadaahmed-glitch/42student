@@ -1,6 +1,5 @@
 """
 Repository Layer for 42 Student OS.
-Provides atomic query methods for all system entities.
 """
 
 from __future__ import annotations
@@ -65,7 +64,6 @@ class ProjectRepository:
         return self.session.execute(stmt).scalar_one_or_none()
 
     def set_active_project(self, slug: str) -> Project:
-        # Deactivate all
         stmt_all = select(Project)
         for proj in self.session.execute(stmt_all).scalars():
             proj.is_active = False
@@ -228,7 +226,6 @@ class MistakeRepository:
         raw_error: str,
         root_cause: Optional[str] = None,
     ) -> Mistake:
-        # Check if identical unresolved error exists for exercise
         stmt = select(Mistake).where(
             Mistake.exercise_id == exercise_id,
             Mistake.category == category,
@@ -266,19 +263,32 @@ class SkillRepository:
         self.session = session
 
     def record_outcome(self, student_id: int, concept: str, success: bool) -> SkillMastery:
+        """Safely increments skill success or failure counts without NoneType errors."""
         stmt = select(SkillMastery).where(
             SkillMastery.student_id == student_id,
             SkillMastery.concept == concept,
         )
         skill = self.session.execute(stmt).scalar_one_or_none()
         if not skill:
-            skill = SkillMastery(student_id=student_id, concept=concept)
+            skill = SkillMastery(
+                student_id=student_id,
+                concept=concept,
+                mastery_level=0.0,
+                success_count=0,
+                failure_count=0,
+            )
             self.session.add(skill)
 
+        # Defend against pre-existing NULL values in the SQLite database
+        current_success = skill.success_count if skill.success_count is not None else 0
+        current_failure = skill.failure_count if skill.failure_count is not None else 0
+
         if success:
-            skill.success_count += 1
+            skill.success_count = current_success + 1
+            skill.failure_count = current_failure
         else:
-            skill.failure_count += 1
+            skill.success_count = current_success
+            skill.failure_count = current_failure + 1
 
         total = skill.success_count + skill.failure_count
         if total > 0:

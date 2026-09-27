@@ -23,7 +23,6 @@ def test_student_xp_and_level_advancement(db_session: Session):
     assert student.xp == 0
     assert student.level == 0.0
 
-    # Advance XP
     updated = repo.add_xp(student.id, 1500)
     assert updated.xp == 1500
     assert updated.level == 1.5
@@ -60,7 +59,6 @@ def test_mistake_deduplication_and_occurrences(db_session: Session):
     project = proj_repo.create_or_update_project("gnl", "GNL", "Rank 01")
     exercise = ex_repo.register_exercise(project.id, "mandatory", "get_next_line", "get_next_line.c")
 
-    # Record first mistake
     m1 = mistake_repo.log_mistake(
         exercise_id=exercise.id,
         category="memory_leak",
@@ -68,7 +66,6 @@ def test_mistake_deduplication_and_occurrences(db_session: Session):
     )
     assert m1.occurrences == 1
 
-    # Record identical unresolved mistake
     m2 = mistake_repo.log_mistake(
         exercise_id=exercise.id,
         category="memory_leak",
@@ -76,3 +73,23 @@ def test_mistake_deduplication_and_occurrences(db_session: Session):
     )
     assert m2.id == m1.id
     assert m2.occurrences == 2
+
+
+def test_skill_record_outcome_null_safety(db_session: Session):
+    """Verifies that record_outcome handles uninitialized counters without TypeError."""
+    student_repo = StudentRepository(db_session)
+    student = student_repo.get_or_create_student("null_safe_tester")
+
+    skill_repo = SkillRepository(db_session)
+
+    # First record on clean skill (failure)
+    s1 = skill_repo.record_outcome(student.id, "pointers", success=False)
+    assert s1.failure_count == 1
+    assert s1.success_count == 0
+    assert s1.mastery_level == 0.0
+
+    # Second record (success)
+    s2 = skill_repo.record_outcome(student.id, "pointers", success=True)
+    assert s2.failure_count == 1
+    assert s2.success_count == 1
+    assert s2.mastery_level == 50.0

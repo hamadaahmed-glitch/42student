@@ -1,6 +1,5 @@
 """
 SQLAlchemy 2.0 Relational Data Models for 42 Student OS.
-Defines entities for Students, Projects, Exercises, Attempts, Mistakes, Skills, and Sessions.
 """
 
 from __future__ import annotations
@@ -26,12 +25,10 @@ from sqlalchemy.orm import (
 
 
 class Base(DeclarativeBase):
-    """Base class for all database entities."""
     pass
 
 
 def utc_now() -> datetime:
-    """Helper to return current UTC time."""
     return datetime.now(timezone.utc)
 
 
@@ -47,7 +44,6 @@ class Student(Base):
     last_active_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
-    # Relationships
     skills: Mapped[List["SkillMastery"]] = relationship("SkillMastery", back_populates="student", cascade="all, delete-orphan")
     sessions: Mapped[List["StudySession"]] = relationship("StudySession", back_populates="student", cascade="all, delete-orphan")
 
@@ -60,11 +56,10 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     tier: Mapped[str] = mapped_column(String(32), default="Rank 00", nullable=False)
     local_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
-    status: Mapped[str] = mapped_column(String(32), default="not_started", nullable=False) # not_started, in_progress, completed
-    access_mode: Mapped[str] = mapped_column(String(32), default="strict", nullable=False) # strict, study, free
+    status: Mapped[str] = mapped_column(String(32), default="not_started", nullable=False)
+    access_mode: Mapped[str] = mapped_column(String(32), default="strict", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    # Relationships
     exercises: Mapped[List["Exercise"]] = relationship("Exercise", back_populates="project", cascade="all, delete-orphan")
     references: Mapped[List["ReferenceItem"]] = relationship("ReferenceItem", back_populates="project", cascade="all, delete-orphan")
     sessions: Mapped[List["StudySession"]] = relationship("StudySession", back_populates="project")
@@ -80,9 +75,8 @@ class Exercise(Base):
     source_file: Mapped[str] = mapped_column(String(256), nullable=False)
     signature: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     is_bonus: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False) # pending, passed, failed
+    status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
 
-    # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="exercises")
     attempts: Mapped[List["Attempt"]] = relationship("Attempt", back_populates="exercise", cascade="all, delete-orphan")
     mistakes: Mapped[List["Mistake"]] = relationship("Mistake", back_populates="exercise", cascade="all, delete-orphan")
@@ -102,7 +96,6 @@ class Attempt(Base):
     compiler_output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     norm_output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Relationships
     exercise: Mapped["Exercise"] = relationship("Exercise", back_populates="attempts")
     details: Mapped[List["TestDetail"]] = relationship("TestDetail", back_populates="attempt", cascade="all, delete-orphan")
 
@@ -117,9 +110,8 @@ class TestDetail(Base):
     input_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     expected_output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     actual_output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    error_signal: Mapped[Optional[str]] = mapped_column(String(64), nullable=True) # e.g. SIGSEGV, SIGABRT, TIMEOUT
+    error_signal: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    # Relationships
     attempt: Mapped["Attempt"] = relationship("Attempt", back_populates="details")
 
 
@@ -128,7 +120,7 @@ class Mistake(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     exercise_id: Mapped[int] = mapped_column(Integer, ForeignKey("exercises.id", ondelete="CASCADE"), nullable=False)
-    category: Mapped[str] = mapped_column(String(64), index=True, nullable=False) # memory, pointer, boundary, norm, logic
+    category: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     raw_error: Mapped[str] = mapped_column(Text, nullable=False)
     root_cause: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     occurrences: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
@@ -136,7 +128,6 @@ class Mistake(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
-    # Relationships
     exercise: Mapped["Exercise"] = relationship("Exercise", back_populates="mistakes")
 
 
@@ -145,12 +136,11 @@ class SkillMastery(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
-    concept: Mapped[str] = mapped_column(String(64), index=True, nullable=False) # pointers, dynamic_memory, recursion
-    mastery_level: Mapped[float] = mapped_column(Float, default=0.0, nullable=False) # 0.0 to 100.0
-    success_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    failure_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    concept: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    mastery_level: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    success_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    failure_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
 
-    # Relationships
     student: Mapped["Student"] = relationship("Student", back_populates="skills")
 
 
@@ -166,7 +156,6 @@ class StudySession(Base):
     xp_earned: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     hints_used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    # Relationships
     student: Mapped["Student"] = relationship("Student", back_populates="sessions")
     project: Mapped[Optional["Project"]] = relationship("Project", back_populates="sessions")
 
@@ -176,11 +165,10 @@ class ReferenceItem(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
-    ref_type: Mapped[str] = mapped_column(String(32), nullable=False) # official_subject, github_repo, local_note
+    ref_type: Mapped[str] = mapped_column(String(32), nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     url_or_path: Mapped[str] = mapped_column(String(512), nullable=False)
     is_locked: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    tags: Mapped[Optional[str]] = mapped_column(String(256), nullable=True) # comma-separated tags
+    tags: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
 
-    # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="references")
