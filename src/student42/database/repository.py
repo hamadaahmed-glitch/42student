@@ -279,7 +279,7 @@ class SkillRepository:
             )
             self.session.add(skill)
 
-        # Defend against pre-existing NULL values in the SQLite database
+        # Defend against None values from newly instantiated or pre-existing records
         current_success = skill.success_count if skill.success_count is not None else 0
         current_failure = skill.failure_count if skill.failure_count is not None else 0
 

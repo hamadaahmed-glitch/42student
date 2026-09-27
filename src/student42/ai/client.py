@@ -1,14 +1,20 @@
 """
 Gemini SDK Client Integration (google-genai).
-Features warning suppression and fallback model routing across 503 demand spikes.
 """
 
 from __future__ import annotations
 
 import logging
+import os
+import sys
 import time
 import warnings
 from typing import Optional, Type, TypeVar
+
+# Silence Google GenAI SDK AFC warnings
+warnings.filterwarnings("ignore", message=".*Automatic function calling.*")
+warnings.filterwarnings("ignore", message=".*Direct use of automatic function calling.*")
+logging.getLogger("google.genai").setLevel(logging.ERROR)
 
 from google import genai
 from google.genai import errors, types
@@ -17,18 +23,12 @@ from pydantic import BaseModel
 from student42.ai.tools import AgentToolRegistry
 from student42.core.config import get_settings
 
-# Silence AFC and experimental warnings from the google.genai SDK
-warnings.filterwarnings("ignore", message=".*Automatic function calling.*")
-warnings.filterwarnings("ignore", message=".*Direct use of automatic function calling.*")
-logging.getLogger("google.genai").setLevel(logging.ERROR)
-
 T = TypeVar("T", bound=BaseModel)
 
 
 class GeminiClient:
     """Wrapper around official google-genai client with retry and multi-model fallback."""
 
-    # Fallback model priority if a specific endpoint experiences temporary demand spikes
     FALLBACK_CHAIN = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
 
     def __init__(self) -> None:
@@ -74,11 +74,9 @@ class GeminiClient:
                     return response_model.model_validate_json(response.text)
                 except errors.ServerError as e:
                     last_error = e
-                    # 503 spike backoff: wait and retry, then fall back to next model
                     time.sleep(1.0 * attempt)
                 except errors.ClientError as e:
                     last_error = e
-                    # If model not found (404), break immediately to next model in candidate chain
                     if "404" in str(e):
                         break
                     raise
