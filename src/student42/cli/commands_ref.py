@@ -1,61 +1,107 @@
 """
-Manages official subjects, external GitHub reference clones, and notes.
+CLI Commands for Reference Solution Management.
 """
 
 from __future__ import annotations
 
-import re
-from pathlib import Path
 from typing import Optional
+import typer
+from rich.table import Table
 
-import git
-
-from student42.core.config import get_paths
+from student42.cli.ui import console
 from student42.database.connection import get_db_manager
-from student42.database.models import ReferenceItem
-from student42.database.repository import ReferenceRepository
+from student42.database.repository import ProjectRepository, ReferenceRepository
+from student42.references.reference_manager import ReferenceManager
+
+# Typer sub-application instance required by main.py
+app = typer.Typer(help="Manage official subject PDFs, external GitHub repos, and notes.")
 
 
-class ReferenceManager:
-    """Manages cloning, indexing, and retrieving student references."""
+@app.command("list")
+def list_references() -> None:
+    """Lists all registered reference repositories and subjects."""
+    db = get_db_manager()
+    with db.session() as session:
+        proj = ProjectRepository(session).get_active_project()
+        if not proj:
+            console.print("[red]No active project selected. Run '42student project select <slug>' first.[/red]")
+            raise typer.Exit(code=1)
 
-    def __init__(self, project_id: int) -> None:
-        self.project_id = project_id
-        self.paths = get_paths()
-        self.github_dir = self.paths.references_dir / "github"
+        ref_repo = ReferenceRepository(session)
+        refs = ref_repo.list_references(proj.id)
 
-    @staticmethod
-    def sanitize_git_url(raw_url: str) -> str:
-        """Converts web browser URLs like https://github.com/user/repo/tree/master to cloneable git URL."""
-        clean = raw_url.strip()
-        # Match github.com/user/repo and discard /tree/..., /blob/...
-        match = re.match(r"(https?://github\.com/[^/]+/[^/]+?)(?:/(?:tree|blob)/.*)?$", clean)
-        if match:
-            base = match.group(1)
-            return base if base.endswith(".git") else f"{base}.git"
-        return clean
+        table = Table(title=f"References: {proj.name}", title_style="bold cyan")
+        table.add_column("ID", style="bold white")
+        table.add_column("Type", style="cyan")
+        table.add_column("Name", style="white")
+        table.add_column("Status", justify="center")
 
-    def register_github_repo(self, repo_url: str, name: str, tags: Optional[str] = None) -> ReferenceItem:
-        """Clones a GitHub repository into managed storage and records it."""
-        safe_name = "".join(c for c in name if c.isalnum() or c in ("-", "_"))
-        target_path = self.github_dir / safe_name
-        clean_url = self.sanitize_git_url(repo_url)
+        if not refs:
+            table.add_row("-", "None", "No references registered yet", "[dim]Use 'ref add' to register[/dim]")
+        else:
+            for r in refs:
+                status = "[red]🔒 LOCKED[/red]" if r.is_locked else "[green]🔓 UNLOCKED[/green]"
+                table.add_row(str(r.id), r.ref_type, r.name, status)
 
-        if not target_path.exists():
-            try:
-                git.Repo.clone_from(clean_url, target_path)
-            except git.GitCommandError as e:
-                raise RuntimeError(f"Git clone failed for '{clean_url}': {e.stderr.strip() if e.stderr else str(e)}")
+        console.print(table)
 
-        db = get_db_manager()
-        with db.session() as session:
-            repo = ReferenceRepository(session)
-            item = repo.add_reference(
-                project_id=self.project_id,
-                ref_type="github_repo",
-                name=name,
-                url_or_path=str(target_path),
-                is_locked=True,
-                tags=tags,
-            )
-            return item
+
+@app.command("add")
+def add_github_repo(
+    repo_url: str = typer.Argument(..., help="GitHub repository URL or local path"),
+    name: str = typer.Argument(..., help="Name for this reference reference (e.g., peer_libft)"),
+    tags: Optional[str] = typer.Option(None, "--tags", "-t", help="Comma-separated tags (e.g., linked_lists,pointers)"),
+) -> None:
+    """Clones a GitHub reference solution into managed local storage."""
+    db = get_db_manager()
+    with db.session() as session:
+        proj = ProjectRepository(session).get_active_project()
+        if not proj:
+            console.print("[red]No active project selected. Run '42student project select <slug>' first.[/red]")
+            raise typer.Exit(code=1)
+        proj_id = proj.id
+
+    manager = ReferenceManager(proj_id)
+    try:
+        with console.status(f"[bold cyan]Cloning reference repo '{name}'..."):
+            item = manager.register_github_repo(repo_url, name, tags)
+        console.print(f"[bold green]✓ Cloned and registered reference repo: [white]{item.name}[/white][/bold green]")
+    except Exception as e:
+        console.print(f"[bold red]Reference Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command("mode")
+def set_access_mode(
+    mode: str = typer.Argument(..., help="Access policy: strict | study | free")
+) -> None:
+    """Updates the reference access policy (strict, study, or free)."""
+    valid_modes = ["strict", "study", "free"]
+    clean_mode = mode.lower().strip()
+
+    if clean_mode not in valid_modes:
+        console.print(f"[red]Invalid mode '{mode}'. Choose from: {', '.join(valid_modes)}[/red]")
+        raise typer.Exit(code=1)
+
+    db = get_db_manager()
+    with db.session() as session:
+        proj_repo = ProjectRepository(session)
+        proj = proj_repo.get_active_project()
+        if not proj:
+            console.print("[red]No active project selected. Select one first.[/red]")
+            raise typer.Exit(code=1)
+
+        proj.access_mode = clean_mode
+        console.print(f"[bold green]✓ Reference access mode set to [cyan]{clean_mode.upper()}[/cyan] for {proj.name}[/bold green]")
+
+
+@app.command("unlock")
+def unlock_reference(
+    ref_id: int = typer.Argument(..., help="Database ID of the reference to unlock")
+) -> None:
+    """Manually unlocks a reference item."""
+    db = get_db_manager()
+    with db.session() as session:
+        ref_repo = ReferenceRepository(session)
+        ref_repo.unlock_reference(ref_id)
+        console.print(f"[bold green]✓ Unlocked reference ID #{ref_id}[/bold green]")
