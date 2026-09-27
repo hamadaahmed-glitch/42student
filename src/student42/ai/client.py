@@ -57,6 +57,7 @@ class GeminiClient:
             response_schema=response_model,
             system_instruction=system_instruction,
             temperature=0.2,
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
 
         last_error: Exception | None = None
