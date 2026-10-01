@@ -1,0 +1,41 @@
+cd ~/Desktop/all/42_student_run
+
+# 1. أوقف أي virtual environment غير صحيح
+deactivate 2>/dev/null || true
+
+# 2. احذف الـ venv القديم وأنشئ واحدًا جديدًا
+rm -rf .venv
+
+sudo apt update
+sudo apt install -y python3-full python3-venv python3-tk
+
+python3 -m venv .venv
+
+# 3. فعّل الـ venv
+source .venv/bin/activate
+
+# 4. تحقق أن Python و pip أصبحا من .venv
+echo "===== PYTHON ====="
+which python
+python --version
+
+echo "===== PIP ====="
+which pip
+pip --version
+
+# 5. حدّث pip داخل الـ venv
+python -m pip install --upgrade pip
+
+# 6. ثبّت Gemini SDK
+python -m pip install google-genai
+
+# 7. اختبارات
+echo "===== GEMINI ====="
+python -c "from google import genai; print('Gemini SDK: OK')"
+
+echo "===== TKINTER ====="
+python -c "import tkinter; print('Tkinter: OK')"
+
+# 8. تشغيل المشروع
+echo "===== RUNNING 42 STUDENT RUN ====="
+python main.py
